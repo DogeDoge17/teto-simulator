@@ -13,8 +13,12 @@ const BlockTypes = enum{
     air,
  };
 
+const 
+
 //const
-// 
+// { .x = 4 * 16, .y = 0 } ,
+// { .x = 3 * 16, .y = 0 },
+//
 
 
 
