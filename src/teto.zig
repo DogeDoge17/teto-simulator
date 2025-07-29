@@ -3,8 +3,8 @@ const rl = @import("raylib");
 const main = @import("main.zig");
 
 pub const Teto = struct {
-    height: f32 = 305.0,
-    width: f32 = 120.0,
+    height: f32 = 305.0 * 3,
+    width: f32 = 120.0 * 3,
     texture: ?rl.Texture = null,
     position: rl.Vector2 = rl.Vector2{ .x = 0.0, .y = 0.0 },
     velocity: rl.Vector2 = rl.Vector2{ .x = 0.0, .y = 0.0 },

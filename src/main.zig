@@ -16,22 +16,21 @@ pub const baseHeight = 1080;
 
 pub var renderScale: f32 = @as(f32, @floatFromInt(targetWidth)) / @as(f32, @floatFromInt(baseWidth));
 
-pub var resDelta: f32 = 0.0;
 pub var gameDelta:f32 = 0.0;
 
 pub fn main() anyerror!void {
-    rl.setConfigFlags(.{ .window_resizable = true, .window_highdpi = true, .vsync_hint = true, .msaa_4x_hint = true });
+    rl.setConfigFlags(.{ .window_resizable = true, .window_highdpi = false, .vsync_hint = true, .msaa_4x_hint = true });
     rl.initWindow(1280, 720, "TETO SIMULATOR 90 BILION");
     defer rl.closeWindow();
     rl.setTargetFPS(144);
 
-    renderScale *= rl.getWindowScaleDPI().x;
+
+    std.debug.print("high dpi scaling {d}, {d}: {}\n", .{rl.getWindowScaleDPI().x, rl.getWindowScaleDPI().y, rl.getWindowScaleDPI()});
 
     const target: rl.RenderTexture2D = try rl.loadRenderTexture(targetWidth, targetHeight);
 
     try game.Start();
     while (!rl.windowShouldClose()) {
-        resDelta = rl.getFrameTime() * renderScale;
         gameDelta = rl.getFrameTime();
 
         game.Update() catch |err| {
@@ -48,6 +47,8 @@ pub fn main() anyerror!void {
         {
             rl.beginDrawing();
             defer rl.endDrawing();
+
+            rl.clearBackground(.black);
 
             const screenWidth: i32 = rl.getScreenWidth();
             const screenHeight: i32 = rl.getScreenHeight();
