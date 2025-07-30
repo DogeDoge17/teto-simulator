@@ -1,6 +1,6 @@
 const rl = @import("raylib");
 const main = @import("main.zig");
-
+const std = @import("std");
 
 const BlockTypes = enum{
     grass,
@@ -32,7 +32,8 @@ const blockSource = [_]rl.Rectangle{
     // diamond
     .{ .x = 2 * 16, .y = 3 * 16, .width = 16, .height = 16 },
     // air
-    .{ .x = 1 * 16, .y = 3 * 16, .width = 16, .height = 16 }, };
+    .{ .x = 1 * 16, .y = 3 * 16, .width = 16, .height = 16 },
+};
 
 
 var lastHeight: u8 = 4;
@@ -40,10 +41,27 @@ var scroll: f32 = 0.0;
 
 var atlas: rl.Texture = undefined;
 
+var floor: [16][9]BlockTypes = undefined;
+
 pub fn InitTerrain() !void {
     const image: rl.Image = try rl.loadImage("assets/terrain/terrain.png");
     defer rl.unloadImage(image);
     atlas = try rl.loadTextureFromImage(image);
+
+    generateColumn(3);
+    std.debug.print("terrain initialized: {any}\n", .{floor});
+
+}
+
+pub fn generateColumn(column: usize) void {
+    var nextHeight: u8 = genNextHeight();
+
+    var i:usize = 0;
+    while(i < floor[column].len) : (i += 1) {
+
+    }
+
+    lastHeight = nextHeight;
 }
 
 pub fn DrawFloor() void {
@@ -77,6 +95,6 @@ pub fn DrawFloor() void {
 
 }
 
-pub fn GenerateNext() u8 {
-    return 4;
+pub fn genNextHeight() u8 {
+    return lastHeight +% 1;
 }

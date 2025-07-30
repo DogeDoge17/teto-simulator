@@ -35,6 +35,12 @@ pub const Teto = struct {
 
        const delta = main.gameDelta * acceleration;
 
+       if(rl.isKeyPressed(.r))
+         {
+              self.position = rl.Vector2{ .x = 0.0, .y = main.baseHeight - self.height };
+              self.velocity = rl.Vector2{ .x = 0.0, .y = 0.0 };
+         }
+
        if (rl.isKeyDown(.right) or rl.isKeyDown(.d)) {
            self.velocity.x += delta;
            self.direction = -1;
