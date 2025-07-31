@@ -43,22 +43,57 @@ var atlas: rl.Texture = undefined;
 
 var floor: [16][9]BlockTypes = undefined;
 
+var prng: std.Random.DefaultPrng = undefined;
+
+pub fn InitFloor() void {
+    for (floor) |*column| {
+        for (column) |*block| {
+            block.* = BlockTypes.air;
+        }
+    }
+}
+
 pub fn InitTerrain() !void {
     const image: rl.Image = try rl.loadImage("assets/terrain/terrain.png");
     defer rl.unloadImage(image);
     atlas = try rl.loadTextureFromImage(image);
 
-    generateColumn(3);
-    std.debug.print("terrain initialized: {any}\n", .{floor});
+    for (0..floor.len) |i| {
+        generateColumn(i);
+    }
 
+    prng = std.Random.DefaultPrng.init(blk: {
+        var seed: u64 = undefined;
+        try std.posix.getrandom(std.mem.asBytes(&seed));
+        break :blk seed;
+    });
+}
+
+
+fn genOre() BlockTypes {
+    const rand: u64 = prng.next() % 7;
+    return switch (rand) {
+        0 => BlockTypes.iron,
+        1 => BlockTypes.coal,
+        2 => BlockTypes.gold,
+        3 => BlockTypes.redstone,
+        4 => BlockTypes.diamond,
+        5 => BlockTypes.stone,
+        6 => BlockTypes.stone,
+        else => BlockTypes.air,
+    };
 }
 
 pub fn generateColumn(column: usize) void {
-    var nextHeight: u8 = genNextHeight();
+    const nextHeight: u8 = genNextHeight();
 
-    var i:usize = 0;
-    while(i < floor[column].len) : (i += 1) {
-
+    for (0..nextHeight) |i| {
+        floor[column][i] = switch (i) {
+            0 => BlockTypes.grass,
+            1 => BlockTypes.dirt,
+            2 => BlockTypes.stone,
+            else => genOre(),
+        };
     }
 
     lastHeight = nextHeight;
@@ -67,6 +102,8 @@ pub fn generateColumn(column: usize) void {
 pub fn DrawFloor() void {
 
     const upScale:f32 = 6;
+
+
 
     var i:usize = 0;
     while(i <= @intFromEnum(BlockTypes.air)) : (i += 1) {
@@ -95,6 +132,11 @@ pub fn DrawFloor() void {
 
 }
 
-pub fn genNextHeight() u8 {
-    return lastHeight +% 1;
+pub fn genNextHeight() u8{
+    const change = @as(i8, @intCast(prng.next() % 5)) - 2;
+    var newHeight = @as(i16, lastHeight) + change;
+
+    if (newHeight < 1) newHeight = 1;
+
+    return @intCast(@min(@as(u16, @intCast(newHeight)), floor[lastHeight].len));
 }
