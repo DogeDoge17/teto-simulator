@@ -1,8 +1,10 @@
 const rl = @import("raylib");
 const main = @import("main.zig");
 const std = @import("std");
+const rand = @import("random.zig");
 
-const BlockTypes = enum{
+
+const BlockTypes = enum {
     grass,
     dirt,
     stone,
@@ -11,8 +13,9 @@ const BlockTypes = enum{
     gold,
     redstone,
     diamond,
+    poo,
     air,
- };
+};
 
 const blockSource = [_]rl.Rectangle{
     // grass
@@ -31,27 +34,24 @@ const blockSource = [_]rl.Rectangle{
     .{ .x = 3 * 16, .y = 3 * 16, .width = 16, .height = 16 },
     // diamond
     .{ .x = 2 * 16, .y = 3 * 16, .width = 16, .height = 16 },
+    // poo
+    .{ .x = 2 * 16, .y = 7 * 16, .width = 16, .height = 16 },
     // air
-    .{ .x = 1 * 16, .y = 3 * 16, .width = 16, .height = 16 },
+    .{ .x = 1 * 16, .y = 7 * 16, .width = 16, .height = 16 },
 };
 
+var lastHeight: u8 = 6;
+pub var scroll: f32 = 0.0;
 
-var lastHeight: u8 = 4;
-var scroll: f32 = 0.0;
+var zeroth: usize = 0;
 
 var atlas: rl.Texture = undefined;
 
-var floor: [16][9]BlockTypes = undefined;
+const floorColumns: usize = 48; // Number of columns in the floor
+const scrollMid = floorColumns / 2;
+const floorHeight: usize = 7; // Number of blocks in each column
+var floor: [floorColumns][floorHeight]BlockTypes = .{.{.air} ** floorHeight} ** floorColumns; //@memset(floor[0..], BlockTypes.air, @sizeOf(BlockTypes) * 7);
 
-var prng: std.Random.DefaultPrng = undefined;
-
-pub fn InitFloor() void {
-    for (floor) |*column| {
-        for (column) |*block| {
-            block.* = BlockTypes.air;
-        }
-    }
-}
 
 pub fn InitTerrain() !void {
     const image: rl.Image = try rl.loadImage("assets/terrain/terrain.png");
@@ -62,81 +62,101 @@ pub fn InitTerrain() !void {
         generateColumn(i);
     }
 
-    prng = std.Random.DefaultPrng.init(blk: {
-        var seed: u64 = undefined;
-        try std.posix.getrandom(std.mem.asBytes(&seed));
-        break :blk seed;
-    });
+    for (0..floor.len) |i| {
+        const column = floor[i];
+        for (0..column.len) |j| {
+            std.debug.print("{s}, ", .{ @tagName(column[j]) } );
+        }
+        std.debug.print("\n", .{});
+    }
+    zeroth = scrollMid;
 }
 
 
+pub fn UpdateScroll(x: f32) void {
+    const column: usize = @mod(@as(usize, @intFromFloat(@divExact(x, 16 * upScale * main.renderScale))), floor.len);
+
+    if (column != zeroth) {
+        zeroth = column;
+        generateColumn(column);
+        scroll += 16;
+    }
+//    scroll = @as(f32, @floatFromInt( @mod(column, floor.len) ));
+}
+
 fn genOre() BlockTypes {
-    const rand: u64 = prng.next() % 7;
-    return switch (rand) {
+    const randNum: i32 = rand.rand_range(0, 20);
+    return switch (randNum) {
         0 => BlockTypes.iron,
         1 => BlockTypes.coal,
         2 => BlockTypes.gold,
         3 => BlockTypes.redstone,
         4 => BlockTypes.diamond,
-        5 => BlockTypes.stone,
-        6 => BlockTypes.stone,
-        else => BlockTypes.air,
+        else => BlockTypes.stone,
     };
 }
 
 pub fn generateColumn(column: usize) void {
-    const nextHeight: u8 = genNextHeight();
+    const nextHeight: i16 = genNextHeight();
 
-    for (0..nextHeight) |i| {
-        floor[column][i] = switch (i) {
-            0 => BlockTypes.grass,
-            1 => BlockTypes.dirt,
-            2 => BlockTypes.stone,
-            else => genOre(),
-        };
+    if (column >= floor.len or nextHeight >= floor[column].len) {
+        std.debug.print("Invalid column {d} or height {d}\n", .{column, nextHeight});
+        return;
     }
 
-    lastHeight = nextHeight;
+    floor[column] = .{ .air } ** floorHeight;
+
+    floor[column][@max(0, nextHeight - 2)] = BlockTypes.dirt;
+    floor[column][@max(0, nextHeight - 1)] = BlockTypes.grass;
+
+    for (0..@max(0, nextHeight - 2)) |i| {
+
+        floor[column][i] = genOre();
+
+        //floor[column][i] = switch (i) {
+        //    nextHeight => BlockTypes.grass,
+        //    nextHeight - 1  => BlockTypes.dirt,
+        //    nextHeight - 2 => BlockTypes.stone,
+        //    else => genOre(),
+        //};
+    }
+    lastHeight = @as(u8, @intCast(nextHeight));
 }
 
+    const upScale: f32 = 6;
 pub fn DrawFloor() void {
 
-    const upScale:f32 = 6;
+    for (0..floor.len) |jay| {
+        const j: usize = @mod(jay + zeroth, floor.len);
+        const column = floor[j];
+        for (0..column.len) |i| {
+            const blockType = column[i];
+            if (blockType == BlockTypes.air) continue;
 
+            const source: rl.Rectangle = blockSource[@intFromEnum(blockType)];
+            const dest: rl.Rectangle = .{
+                .x = ((@as(f32, @floatFromInt(j  * 16)) + scroll ) * upScale * main.renderScale) - @as(f32, @floatFromInt(main.baseWidth)),
+                .y = (main.baseHeight - (@as(f32, @floatFromInt(((i + 1) * 16))) * upScale)) * main.renderScale,
+                .width = 16 * main.renderScale * upScale,
+                .height = 16 * main.renderScale * upScale
+            };
 
-
-    var i:usize = 0;
-    while(i <= @intFromEnum(BlockTypes.air)) : (i += 1) {
-       rl.drawTexturePro(
-           atlas,
-           blockSource[i],
-           rl.Rectangle{
-               .x = @as(f32, @floatFromInt(i * 16)) * upScale * main.renderScale,
-               .y = @as(f32, 240 - 16) * main.renderScale + scroll ,
-               .width = 16 * main.renderScale * upScale,
-               .height = 16 * main.renderScale * upScale
-           },
-           rl.Vector2{ .x = 0.0, .y = 0.0 },
-           0.0,
-           .white);
+            rl.drawTexturePro(atlas, source, dest, .{.x = 0, .y = 0 }, 0.0, .white);
+        }
     }
-
-
-    //rl.drawTexturePro(
-    //    atlas,
-    //    rl.Rectangle{ .x = 0, .y = 0, .width = @as(f32, @floatFromInt(atlas.width)), .height = @as(f32, @floatFromInt(atlas.height)) },
-    //    rl.Rectangle{ .x = 0 * main.renderScale, .y = 0 * main.renderScale , .width =  @as(f32, @floatFromInt(atlas.width)) * main.renderScale, .height = @as(f32, @floatFromInt(atlas.height)) * main.renderScale },
-    //    rl.Vector2{ .x = 0.0, .y = 0.0 },
-    //    0.0,
-    //    .white);
-
 }
 
-pub fn genNextHeight() u8{
-    const change = @as(i8, @intCast(prng.next() % 5)) - 2;
-    var newHeight = @as(i16, lastHeight) + change;
+pub fn genNextHeight() u8 {
 
-    if (newHeight < 1) newHeight = 1;
+    var newHeight: i32 = 0;
+    if(rand.rand_range(0, 2) != 0){
+        newHeight = lastHeight + rand.rand_range(0, 2);
+    } else {
+        newHeight = lastHeight - rand.rand_range(0, 2);
+    }
+
+    if (newHeight < 1) newHeight = 1 else if (newHeight > 9) newHeight = 8;
 
     return @intCast(@min(@as(u16, @intCast(newHeight)), floor[lastHeight].len));
+    //return 6;
 }

@@ -3,8 +3,8 @@ const rl = @import("raylib");
 const main = @import("main.zig");
 
 pub const Teto = struct {
-    height: f32 = 305.0 * 3,
-    width: f32 = 120.0 * 3,
+    height: f32 = 305.0,
+    width: f32 = 120.0,
     texture: ?rl.Texture = null,
     position: rl.Vector2 = rl.Vector2{ .x = 0.0, .y = 0.0 },
     velocity: rl.Vector2 = rl.Vector2{ .x = 0.0, .y = 0.0 },
@@ -27,7 +27,7 @@ pub const Teto = struct {
        const drag: f32 = 200.0;
        const gravity: f32 = 800.0;
        const acceleration = 600.0;
-       const jumpForce: f32 = -600.0;
+       const jumpForce: f32 = -500.0;
        const maxSpeed: f32 = 350.0;
 
        self.velocity.x += (if (self.velocity.x > @as(f32, 0.0)) @as(f32, -1.0) else @as(f32, 1.0)) * main.gameDelta * drag;

@@ -1,7 +1,7 @@
 const rl = @import("raylib");
 const game = @import("game.zig");
 const std = @import("std");
-
+const rand = @import("random.zig");
 //pub const targetWidth = 2560;
 //pub const targetHeight = 1440;
 pub const targetWidth = 7680;
@@ -26,10 +26,19 @@ pub fn main() anyerror!void {
     defer rl.closeWindow();
     rl.setTargetFPS(144);
 
+    rand.gen_seed();
+
 
     std.debug.print("high dpi scaling {d}, {d}: {}\n", .{rl.getWindowScaleDPI().x, rl.getWindowScaleDPI().y, rl.getWindowScaleDPI()});
 
     const target: rl.RenderTexture2D = try rl.loadRenderTexture(targetWidth, targetHeight);
+
+    var camera: rl.Camera2D = .{
+        .zoom = 1,
+        .offset = .{ .x = @divExact(targetWidth, 2), . y = 0},
+        .rotation = 0,
+        .target = std.mem.zeroes(rl.Vector2),
+    };
 
     try game.Start();
     while (!rl.windowShouldClose()) {
@@ -41,17 +50,23 @@ pub fn main() anyerror!void {
             std.debug.print("window resized to {d}x{d}\n", .{rl.getScreenWidth(), rl.getScreenHeight()});
         }
 
-
         game.Update() catch |err| {
             std.debug.print("Error during game update: {}\n", .{err});
             break;
         };
 
+        game.UpdateCamera(&camera);
+
         {
             rl.beginTextureMode(target);
             defer rl.endTextureMode();
+
+            rl.beginMode2D(camera);
+            defer rl.endMode2D();
+
             rl.clearBackground(rl.Color.init(100, 149, 237, 255));
             game.Draw();
+            game.DrawUI();
         }
         {
             rl.beginDrawing();
