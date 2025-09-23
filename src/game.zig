@@ -18,7 +18,6 @@ pub fn Update() !void {
     teto.Update();
 }
 
-var switr: bool = true;
 pub fn UpdateCamera(camera: *rl.Camera2D) void {
     camera.target.x = @max(@max((teto.position.x + (teto.width / 2)) * main.renderScale, camera.target.x), @as(f32, @floatFromInt(@divExact(main.targetWidth, 2))) );
     terr.UpdateScroll(camera.target.x);

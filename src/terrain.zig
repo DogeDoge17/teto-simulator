@@ -40,18 +40,27 @@ const blockSource = [_]rl.Rectangle{
     .{ .x = 1 * 16, .y = 7 * 16, .width = 16, .height = 16 },
 };
 
-var lastHeight: u8 = 6;
-pub var scroll: f32 = 0.0;
+const FloorColumn =  struct {
+    offset: f32,
+    blocks: [floorHeight]BlockTypes 
+};
 
-var zeroth: usize = 0;
+var lastHeight: u8 = 6;
 
 var atlas: rl.Texture = undefined;
 
-const floorColumns: usize = 48; // Number of columns in the floor
-const scrollMid = floorColumns / 2;
+const floorColumns: usize = 23; // Number of columns in the floor
 const floorHeight: usize = 7; // Number of blocks in each column
-var floor: [floorColumns][floorHeight]BlockTypes = .{.{.air} ** floorHeight} ** floorColumns; //@memset(floor[0..], BlockTypes.air, @sizeOf(BlockTypes) * 7);
+//var floor: [floorColumns][floorHeight]BlockTypes = .{.{.air} ** floorHeight} ** floorColumns; //@memset(floor[0..], BlockTypes.air, @sizeOf(BlockTypes) * 7);
+//var floor: [floorColumns]FloorColumn = .{.{ .offset = 0, .blocks = .{.air} ** floorHeight }} ** floorColumns;
+var floor: [floorColumns]FloorColumn = [_]FloorColumn{
+    .{ .offset = 0, .blocks = [_]BlockTypes{.air} ** floorHeight }
+} ** floorColumns;
 
+var backColumn: usize = 0;
+var frontColumn: usize = floorColumns - 1; 
+
+const fullBlock = 6 * 16;
 
 pub fn InitTerrain() !void {
     const image: rl.Image = try rl.loadImage("assets/terrain/terrain.png");
@@ -60,28 +69,30 @@ pub fn InitTerrain() !void {
 
     for (0..floor.len) |i| {
         generateColumn(i);
+        floor[i].offset = @as(f32, @floatFromInt(i)) * fullBlock; 
     }
 
     for (0..floor.len) |i| {
         const column = floor[i];
-        for (0..column.len) |j| {
-            std.debug.print("{s}, ", .{ @tagName(column[j]) } );
+        for (0..column.blocks.len) |j| {
+            std.debug.print("{s}, ", .{ @tagName(column.blocks[j]) } );
         }
         std.debug.print("\n", .{});
     }
-    zeroth = scrollMid;
 }
 
-
+/// x is the target position of which the camera is focused on
 pub fn UpdateScroll(x: f32) void {
-    const column: usize = @mod(@as(usize, @intFromFloat(@divExact(x, 16 * upScale * main.renderScale))), floor.len);
+    const l = floor[backColumn].offset + fullBlock;
+    const r = x / main.renderScale - main.baseWidth / 2;
+    if(l >= r)
+        return;
 
-    if (column != zeroth) {
-        zeroth = column;
-        generateColumn(column);
-        scroll += 16;
-    }
-//    scroll = @as(f32, @floatFromInt( @mod(column, floor.len) ));
+    floor[backColumn].offset = floor[frontColumn].offset + fullBlock;
+    frontColumn = backColumn;
+    backColumn = @mod(backColumn + 1, floorColumns);
+
+    generateColumn(frontColumn);
 }
 
 fn genOre() BlockTypes {
@@ -99,19 +110,19 @@ fn genOre() BlockTypes {
 pub fn generateColumn(column: usize) void {
     const nextHeight: i16 = genNextHeight();
 
-    if (column >= floor.len or nextHeight >= floor[column].len) {
+    if (column >= floor.len or nextHeight > floor[column].blocks.len) {
         std.debug.print("Invalid column {d} or height {d}\n", .{column, nextHeight});
         return;
     }
 
-    floor[column] = .{ .air } ** floorHeight;
+    floor[column].blocks = .{ .air } ** floorHeight;
 
-    floor[column][@max(0, nextHeight - 2)] = BlockTypes.dirt;
-    floor[column][@max(0, nextHeight - 1)] = BlockTypes.grass;
+    floor[column].blocks[@max(0, nextHeight - 2)] = BlockTypes.dirt;
+    floor[column].blocks[@max(0, nextHeight - 1)] = BlockTypes.grass;
 
     for (0..@max(0, nextHeight - 2)) |i| {
 
-        floor[column][i] = genOre();
+        floor[column].blocks[i] = genOre();
 
         //floor[column][i] = switch (i) {
         //    nextHeight => BlockTypes.grass,
@@ -123,22 +134,21 @@ pub fn generateColumn(column: usize) void {
     lastHeight = @as(u8, @intCast(nextHeight));
 }
 
-    const upScale: f32 = 6;
 pub fn DrawFloor() void {
-
     for (0..floor.len) |jay| {
-        const j: usize = @mod(jay + zeroth, floor.len);
-        const column = floor[j];
-        for (0..column.len) |i| {
-            const blockType = column[i];
+//        const j: usize = @mod(jay + zeroth, floor.len);
+        const column = floor[jay];
+        for (0..column.blocks.len) |i| {
+            const blockType = column.blocks[i];
             if (blockType == BlockTypes.air) continue;
 
             const source: rl.Rectangle = blockSource[@intFromEnum(blockType)];
             const dest: rl.Rectangle = .{
-                .x = ((@as(f32, @floatFromInt(j  * 16)) + scroll ) * upScale * main.renderScale) - @as(f32, @floatFromInt(main.baseWidth)),
-                .y = (main.baseHeight - (@as(f32, @floatFromInt(((i + 1) * 16))) * upScale)) * main.renderScale,
-                .width = 16 * main.renderScale * upScale,
-                .height = 16 * main.renderScale * upScale
+                //.x = ((@as(f32, @floatFromInt(j  * 16))) * upScale * main.renderScale) - @as(f32, @floatFromInt(main.baseWidth)),
+                .x = column.offset * main.renderScale, 
+                .y = (main.baseHeight - @as(f32, @floatFromInt(((i + 1) * fullBlock))) ) * main.renderScale,
+                .width = fullBlock * main.renderScale, 
+                .height = fullBlock * main.renderScale,
             };
 
             rl.drawTexturePro(atlas, source, dest, .{.x = 0, .y = 0 }, 0.0, .white);
@@ -155,8 +165,8 @@ pub fn genNextHeight() u8 {
         newHeight = lastHeight - rand.rand_range(0, 2);
     }
 
-    if (newHeight < 1) newHeight = 1 else if (newHeight > 9) newHeight = 8;
+    if (newHeight < 1) newHeight = 1 else if (newHeight > floorHeight) newHeight = floorHeight - 2;
 
-    return @intCast(@min(@as(u16, @intCast(newHeight)), floor[lastHeight].len));
+    return @intCast(@min(@as(u16, @intCast(newHeight)), floor[lastHeight].blocks.len));
     //return 6;
 }

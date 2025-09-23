@@ -28,7 +28,6 @@ pub fn main() anyerror!void {
 
     rand.gen_seed();
 
-
     std.debug.print("high dpi scaling {d}, {d}: {}\n", .{rl.getWindowScaleDPI().x, rl.getWindowScaleDPI().y, rl.getWindowScaleDPI()});
 
     const target: rl.RenderTexture2D = try rl.loadRenderTexture(targetWidth, targetHeight);
@@ -76,8 +75,6 @@ pub fn main() anyerror!void {
             bg = rl.Color.init(bg.r +% 1, bg.g +% 1, bg.b +% 1, 255);
 
             rl.clearBackground(bg);
-
-
 
             const screenWidth: i32 = rl.getScreenWidth();
             const screenHeight: i32 = rl.getScreenHeight();
