@@ -4,10 +4,10 @@ const std = @import("std");
 const rand = @import("random.zig");
 //pub const targetWidth = 2560;
 //pub const targetHeight = 1440;
-pub const targetWidth = 7680;
-pub const targetHeight = 4320;
-//pub const targetWidth = 1920;
-//pub const targetHeight = 1080;
+// pub const targetWidth = 7680;
+// pub const targetHeight = 4320;
+pub const targetWidth = 1920;
+pub const targetHeight = 1080;
 //pub const targetWidth = 1280;
 //pub const targetHeight = 720;
 

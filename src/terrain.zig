@@ -1,8 +1,8 @@
 const rl = @import("raylib");
 const main = @import("main.zig");
-const std = @import("std");
 const rand = @import("random.zig");
-
+const physics = @import("physics.zig");
+const std = @import("std");
 
 const BlockTypes = enum {
     grass,
@@ -42,25 +42,38 @@ const blockSource = [_]rl.Rectangle{
 
 const FloorColumn =  struct {
     offset: f32,
-    blocks: [floorHeight]BlockTypes 
+    blocks: [floorHeight]BlockTypes,
+    height: i8,
+    colliders: [floorHeight + 1]rl.Rectangle
+    
 };
 
-var lastHeight: u8 = 6;
+var lastHeight: u8 = 2;
 
 var atlas: rl.Texture = undefined;
 
 const floorColumns: usize = 23; // Number of columns in the floor
 const floorHeight: usize = 7; // Number of blocks in each column
-//var floor: [floorColumns][floorHeight]BlockTypes = .{.{.air} ** floorHeight} ** floorColumns; //@memset(floor[0..], BlockTypes.air, @sizeOf(BlockTypes) * 7);
-//var floor: [floorColumns]FloorColumn = .{.{ .offset = 0, .blocks = .{.air} ** floorHeight }} ** floorColumns;
 var floor: [floorColumns]FloorColumn = [_]FloorColumn{
-    .{ .offset = 0, .blocks = [_]BlockTypes{.air} ** floorHeight }
-} ** floorColumns;
+.{ .offset = 0, .height = 0, .blocks = [_]BlockTypes{.air} ** floorHeight,  .colliders = [_]rl.Rectangle{ .{ .x = 0, .y = 0, .width = 0, .height = 0 } } ** (floorHeight + 1)} } ** floorColumns;
 
 var backColumn: usize = 0;
 var frontColumn: usize = floorColumns - 1; 
 
 const fullBlock = 6 * 16;
+
+pub fn TryAgainstFloor(rb: *physics.Rigidbody) bool {
+    var hitCount: i8 = 0;
+    for(floor) |columns|{
+        if(rb.CollideAll(&columns.colliders, @as(usize, @intCast(columns.height)))) {
+            hitCount += 1;
+            if(hitCount >= 4){
+                return true;
+            }
+        }
+    }
+    return hitCount > 0;
+}
 
 pub fn InitTerrain() !void {
     const image: rl.Image = try rl.loadImage("assets/terrain/terrain.png");
@@ -68,17 +81,17 @@ pub fn InitTerrain() !void {
     atlas = try rl.loadTextureFromImage(image);
 
     for (0..floor.len) |i| {
-        generateColumn(i);
         floor[i].offset = @as(f32, @floatFromInt(i)) * fullBlock; 
+        generateColumn(i);
     }
 
-    for (0..floor.len) |i| {
-        const column = floor[i];
-        for (0..column.blocks.len) |j| {
-            std.debug.print("{s}, ", .{ @tagName(column.blocks[j]) } );
-        }
-        std.debug.print("\n", .{});
-    }
+//    for (0..floor.len) |i| {
+//        const column = floor[i];
+//        for (0..column.blocks.len) |j| {
+//           std.debug.print("{s}, ", .{ @tagName(column.blocks[j]) } );
+ //       }
+//        std.debug.print("\n", .{});
+//    }
 }
 
 /// x is the target position of which the camera is focused on
@@ -93,6 +106,11 @@ pub fn UpdateScroll(x: f32) void {
     backColumn = @mod(backColumn + 1, floorColumns);
 
     generateColumn(frontColumn);
+
+    for(floor) |column| {
+        std.debug.print("{d}, ", .{column.offset});
+    }
+    std.debug.print("\n", .{});
 }
 
 fn genOre() BlockTypes {
@@ -120,18 +138,30 @@ pub fn generateColumn(column: usize) void {
     floor[column].blocks[@max(0, nextHeight - 2)] = BlockTypes.dirt;
     floor[column].blocks[@max(0, nextHeight - 1)] = BlockTypes.grass;
 
-    for (0..@max(0, nextHeight - 2)) |i| {
-
+    for (0..@max(0, nextHeight - 2)) |i| 
         floor[column].blocks[i] = genOre();
-
-        //floor[column][i] = switch (i) {
-        //    nextHeight => BlockTypes.grass,
-        //    nextHeight - 1  => BlockTypes.dirt,
-        //    nextHeight - 2 => BlockTypes.stone,
-        //    else => genOre(),
-        //};
-    }
+    
     lastHeight = @as(u8, @intCast(nextHeight));
+    floor[column].height = @as(i8, @intCast(nextHeight));
+
+    const prevCol: usize = @as(usize, @intCast(@mod((@as(i64, @intCast(column)) - 1), floorColumns))); 
+    _ = prevCol;
+    //const colliderCount:i8 = @max(floor[column].height - floor[prevCol].height, 1);
+    //for(0..colliderCount) |i| {
+    //    _ = i;
+    //}
+
+    //for(0..@as(usize, @intCast(@max(floor[column].height - floor[prevCol].height,1)))) |i| {
+
+    for(0..@as(usize, @intCast(lastHeight))) |i| {
+        floor[column].colliders[i] = .{ 
+            .x = floor[column].offset, 
+            .y = main.baseHeight - @as(f32, @floatFromInt(i+1)) * fullBlock,
+            // .y = main.baseHeight - @as(f32, @floatFromInt(@as(usize, @intCast(floor[column].height)) - i)) * fullBlock,
+            .width = fullBlock,
+            .height = fullBlock
+        };
+    }
 }
 
 pub fn DrawFloor() void {
@@ -152,6 +182,14 @@ pub fn DrawFloor() void {
             };
 
             rl.drawTexturePro(atlas, source, dest, .{.x = 0, .y = 0 }, 0.0, .white);
+
+            std.debug.print("{d}--x {d}\n", .{jay*i,column.colliders[i].y});
+            const scaledX = @as(i32, @intFromFloat(column.colliders[i].x * main.renderScale));
+            const scaledY = @as(i32, @intFromFloat(column.colliders[i].y * main.renderScale));
+            const scaledWidth = @as(i32, @intFromFloat(column.colliders[i].width * main.renderScale));
+            const scaledHeight = @as(i32, @intFromFloat(column.colliders[i].height * main.renderScale));
+            rl.drawRectangle(scaledX, scaledY, scaledWidth, scaledHeight, rl.colorAlpha(.red, 0.3));
+            rl.drawText("this is a collider", scaledX, scaledY, 10, .white);
         }
     }
 }

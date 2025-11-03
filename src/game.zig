@@ -16,10 +16,11 @@ pub fn Cleanup() void {
 
 pub fn Update() !void {
     teto.Update();
+    _ = terr.TryAgainstFloor(&teto.rb);
 }
 
 pub fn UpdateCamera(camera: *rl.Camera2D) void {
-    camera.target.x = @max(@max((teto.position.x + (teto.width / 2)) * main.renderScale, camera.target.x), @as(f32, @floatFromInt(@divExact(main.targetWidth, 2))) );
+    camera.target.x = @max(@max((teto.rb.position.x + (teto.rb.bounds.x / 2)) * main.renderScale, camera.target.x), @as(f32, @floatFromInt(@divExact(main.targetWidth, 2))) );
     terr.UpdateScroll(camera.target.x);
 }
 
