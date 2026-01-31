@@ -24,7 +24,7 @@ pub const Teto = struct {
         teto.rb = .{
             .position = rl.Vector2{ .x = 0.0, .y = main.baseHeight - 305.0 },
             .velocity = rl.Vector2{ .x = 0.0, .y = 0.0 },
-            .bounds = rl.Vector2{ .x = 120.0, .y = 305.0 },
+            .bounds = rl.Vector2{ .x = 90.0, .y = 305.0 },
         };
         return teto;
     }

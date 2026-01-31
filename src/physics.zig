@@ -24,7 +24,7 @@ pub const Rigidbody = struct{
                 const px: f32 = (0.5 * self.bounds.x + 0.5 * collider.width) - @abs(dx);
                 const py: f32 = (0.5 * self.bounds.y + 0.5 * collider.height) - @abs(dy);
 
-                const slop: f32 = 0.001;
+                const slop: f32 = 0.011;
                 if (px < py) {
                     const sx: f32 = if (dx < 0) -1 else 1;
                     self.position.x += (px + slop) * sx;

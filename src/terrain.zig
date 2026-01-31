@@ -153,15 +153,23 @@ pub fn generateColumn(column: usize) void {
 
     //for(0..@as(usize, @intCast(@max(floor[column].height - floor[prevCol].height,1)))) |i| {
 
-    for(0..@as(usize, @intCast(lastHeight))) |i| {
-        floor[column].colliders[i] = .{ 
-            .x = floor[column].offset, 
-            .y = main.baseHeight - @as(f32, @floatFromInt(i+1)) * fullBlock,
-            // .y = main.baseHeight - @as(f32, @floatFromInt(@as(usize, @intCast(floor[column].height)) - i)) * fullBlock,
-            .width = fullBlock,
-            .height = fullBlock
-        };
-    }
+    floor[column].colliders[0] = .{ 
+             .x = floor[column].offset, 
+             .y = main.baseHeight - @as(f32, @floatFromInt(lastHeight)) * fullBlock,
+             // .y = main.baseHeight - @as(f32, @floatFromInt(@as(usize, @intCast(floor[column].height)) - i)) * fullBlock,
+             .width = fullBlock,
+             .height = @as(f32, @floatFromInt(lastHeight)) * fullBlock
+    };
+
+    // for(0..@as(usize, @intCast(lastHeight))) |i| {
+    //     floor[column].colliders[i] = .{ 
+    //         .x = floor[column].offset, 
+    //         .y = main.baseHeight - @as(f32, @floatFromInt(i+1)) * fullBlock,
+    //         // .y = main.baseHeight - @as(f32, @floatFromInt(@as(usize, @intCast(floor[column].height)) - i)) * fullBlock,
+    //         .width = fullBlock,
+    //         .height = fullBlock
+    //     };
+    // }
 }
 
 pub fn DrawFloor() void {
@@ -182,15 +190,7 @@ pub fn DrawFloor() void {
             };
 
             rl.drawTexturePro(atlas, source, dest, .{.x = 0, .y = 0 }, 0.0, .white);
-
-            std.debug.print("{d}--x {d}\n", .{jay*i,column.colliders[i].y});
-            const scaledX = @as(i32, @intFromFloat(column.colliders[i].x * main.renderScale));
-            const scaledY = @as(i32, @intFromFloat(column.colliders[i].y * main.renderScale));
-            const scaledWidth = @as(i32, @intFromFloat(column.colliders[i].width * main.renderScale));
-            const scaledHeight = @as(i32, @intFromFloat(column.colliders[i].height * main.renderScale));
-            rl.drawRectangle(scaledX, scaledY, scaledWidth, scaledHeight, rl.colorAlpha(.red, 0.3));
-            rl.drawText("this is a collider", scaledX, scaledY, 10, .white);
-        }
+       }
     }
 }
 
